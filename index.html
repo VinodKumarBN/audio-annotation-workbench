@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Transcription Workbench</title>
+<style>
+  :root {
+    --bg: #12141a;
+    --panel: #1a1d26;
+    --panel-2: #20242f;
+    --border: #2c303c;
+    --text: #e7e8ec;
+    --muted: #8a8f9c;
+    --accent: #5aa7ff;
+    --accent-dim: #2a3a52;
+    --warn: #ff8c5a;
+    --mono: "SF Mono", "Consolas", "Menlo", monospace;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+  }
+  header {
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  header h1 { font-size: 15px; font-weight: 600; margin: 0; letter-spacing: 0.2px; }
+  header .sub { color: var(--muted); font-size: 12px; margin-top: 2px; }
+  .layout {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    min-height: 0;
+  }
+  .sidebar {
+    border-right: 1px solid var(--border);
+    padding: 16px;
+    overflow-y: auto;
+    background: var(--panel);
+  }
+  .main {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+  .section-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 18px 0 8px;
+    font-weight: 600;
+  }
+  .section-label:first-child { margin-top: 0; }
+  .file-drop {
+    border: 1.5px dashed var(--border);
+    border-radius: 8px;
+    padding: 20px 12px;
+    text-align: center;
+    color: var(--muted);
+    font-size: 13px;
+    cursor: pointer;
+    transition: border-color 0.15s;
+  }
+  .file-drop:hover { border-color: var(--accent); color: var(--text); }
+  .file-drop input { display: none; }
+  .tag-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+  .tag-btn {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 6px;
+    padding: 6px 8px;
+    font-size: 12px;
+    font-family: var(--mono);
+    cursor: pointer;
+    text-align: left;
+    transition: background 0.1s, border-color 0.1s;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    line-height: 1.3;
+  }
+  .tag-btn:hover { background: var(--accent-dim); border-color: var(--accent); }
+  .tag-btn .k { color: var(--muted); font-size: 10px; float: right; }
+  .tag-btn .desc {
+    font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+    font-size: 10px;
+    color: var(--muted);
+    white-space: normal;
+  }
+  .speaker-row { display: flex; gap: 6px; }
+  .speaker-row .tag-btn { flex: 1; text-align: center; }
+  .audio-zone {
+    padding: 18px 20px;
+    border-bottom: 1px solid var(--border);
+    background: var(--panel);
+  }
+  .filename { font-size: 13px; color: var(--muted); margin-bottom: 10px; }
+  audio { width: 100%; }
+  .transport {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 12px;
+    flex-wrap: wrap;
+  }
+  .transport button {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 6px;
+    padding: 7px 12px;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .transport button:hover { border-color: var(--accent); }
+  .transport button.active { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+  .rate-label { font-size: 12px; color: var(--muted); margin-left: 4px; }
+  .loop-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .loop-controls span.val { color: var(--text); font-family: var(--mono); min-width: 38px; display: inline-block; }
+  .editor-zone {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    padding: 16px 20px;
+  }
+  .editor-zone .section-label { margin-top: 0; }
+  textarea {
+    flex: 1;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 14px;
+    line-height: 1.7;
+    padding: 14px;
+    resize: none;
+    outline: none;
+  }
+  textarea:focus { border-color: var(--accent); }
+  .footer-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 10px;
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .footer-row button {
+    background: var(--accent-dim);
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    padding: 7px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+  }
+  .footer-row button:hover { filter: brightness(1.2); }
+  .hint {
+    font-size: 11px;
+    color: var(--muted);
+    line-height: 1.5;
+    padding: 10px;
+    background: var(--panel-2);
+    border-radius: 6px;
+    margin-top: 6px;
+  }
+  .hint code { color: var(--accent); }
+  ::-webkit-scrollbar { width: 8px; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>Transcription Workbench</h1>
+    <div class="sub">Local tool — you listen, you type. Nothing is auto-generated.</div>
+  </div>
+  <div class="sub" id="statusMsg">No file loaded</div>
+</header>
+
+<div class="layout">
+
+  <div class="sidebar">
+    <div class="section-label">Audio file</div>
+    <label class="file-drop">
+      Click to load audio (.mp3/.wav/.m4a)
+      <input type="file" id="fileInput" accept="audio/*">
+    </label>
+
+    <div class="section-label">Speakers</div>
+    <div class="speaker-row">
+      <button class="tag-btn" data-insert="<s1> " title="Marks the start of Speaker 1's turn">S1<span class="desc">Speaker 1 turn</span></button>
+      <button class="tag-btn" data-insert="<s2> " title="Marks the start of Speaker 2's turn">S2<span class="desc">Speaker 2 turn</span></button>
+    </div>
+
+    <div class="section-label">Overlap / quality</div>
+    <div class="tag-grid">
+      <button class="tag-btn" data-insert="<ol></ol>" title="Wrap words spoken at the same time as another speaker, when you CAN make out what was said">&lt;ol&gt;&lt;/ol&gt;<span class="desc">Overlap — intelligible</span></button>
+      <button class="tag-btn" data-insert="<ct>" title="Use where overlapping speech is happening but you cannot make out the words">&lt;ct&gt;<span class="desc">Overlap — unintelligible</span></button>
+      <button class="tag-btn" data-insert="<ga>" title="Audio is distorted/garbled at this point, can't transcribe cleanly">&lt;ga&gt;<span class="desc">Garbled audio</span></button>
+      <button class="tag-btn" data-insert="<ns>" title="This stretch of the clip has no speech at all">&lt;ns&gt;<span class="desc">No speech</span></button>
+      <button class="tag-btn" data-insert="<na>" title="Dead air / blank audio, nothing to hear at all">&lt;na&gt;<span class="desc">Blank audio</span></button>
+      <button class="tag-btn" data-insert="<nt>" title="Speaker is using a language other than the target transcription language">&lt;nt&gt;<span class="desc">Non-target language</span></button>
+      <button class="tag-btn" data-insert="<sc>" title="Content here is sensitive (flag, don't transcribe details per guideline)">&lt;sc&gt;<span class="desc">Sensitive content</span></button>
+      <button class="tag-btn" data-insert="<(( ))>" title="Put unclear/unintelligible words inside the parentheses instead of guessing">&lt;(( ))&gt;<span class="desc">Unintelligible words</span></button>
+    </div>
+
+    <div class="section-label">Non-speech</div>
+    <div class="tag-grid">
+      <button class="tag-btn" data-insert="[laughter]" title="Someone is laughing at this point in the audio">[laughter]<span class="desc">Laughing sound</span></button>
+      <button class="tag-btn" data-insert="[hn]" title="Any human sound that isn't a word — cough, sigh, throat clear, etc.">[hn]<span class="desc">Human noise</span></button>
+      <button class="tag-btn" data-insert="[fp]" title="A filled pause / hesitation sound within conversation flow">[fp]<span class="desc">Filled pause</span></button>
+      <button class="tag-btn" data-insert="[artifact]" title="Glitch, click, distortion — a technical audio problem, not a real sound">[artifact]<span class="desc">Technical/audio glitch</span></button>
+      <button class="tag-btn" data-insert="[bg]" title="Noise from the environment — traffic, music, other people, etc.">[bg]<span class="desc">Background noise</span></button>
+    </div>
+
+    <div class="section-label">Backchannels</div>
+    <div class="tag-grid">
+      <button class="tag-btn" data-insert="mm-hm" title="Affirmative acknowledgement sound (like 'yes, go on')">mm-hm<span class="desc">Agreement sound</span></button>
+      <button class="tag-btn" data-insert="uh-huh" title="Affirmative acknowledgement sound, casual variant">uh-huh<span class="desc">Agreement sound</span></button>
+      <button class="tag-btn" data-insert="mm-mm" title="Negative sound (like 'no')">mm-mm<span class="desc">Disagreement sound</span></button>
+      <button class="tag-btn" data-insert="uh" title="Hesitation filler while speaking">uh<span class="desc">Hesitation filler</span></button>
+      <button class="tag-btn" data-insert="um" title="Hesitation filler while speaking">um<span class="desc">Hesitation filler</span></button>
+      <button class="tag-btn" data-insert="hmm" title="Thinking/considering sound">hmm<span class="desc">Thinking sound</span></button>
+      <button class="tag-btn" data-insert="oh" title="Reaction/realization sound">oh<span class="desc">Reaction sound</span></button>
+      <button class="tag-btn" data-insert="ooh" title="Surprise/interest reaction sound">ooh<span class="desc">Surprise sound</span></button>
+    </div>
+
+    <div class="hint">
+      Click any tag to insert it at your cursor position in the transcript box. Each button shows what it means underneath — hover for a fuller explanation. Their guideline PDF is still the final authority if it says something different.
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="audio-zone">
+      <div class="filename" id="filename">No file loaded yet</div>
+      <audio id="player" controls></audio>
+
+      <div class="transport">
+        <button data-rate="0.5">0.5x</button>
+        <button data-rate="0.75">0.75x</button>
+        <button data-rate="1" class="active">1x</button>
+        <button data-rate="1.25">1.25x</button>
+        <button id="back3">« 3s</button>
+        <button id="fwd3">3s »</button>
+        <span class="rate-label" id="rateLabel">Speed: 1x</span>
+      </div>
+
+      <div class="transport" style="margin-top:8px;">
+        <button id="setLoopStart">Set loop start</button>
+        <button id="setLoopEnd">Set loop end</button>
+        <button id="playLoop">▶ Play loop</button>
+        <button id="clearLoop">Clear loop</button>
+        <span class="loop-controls">
+          start <span class="val" id="loopStartVal">--</span>
+          end <span class="val" id="loopEndVal">--</span>
+        </span>
+      </div>
+      <div class="hint">
+        Shortcuts (focus anywhere): <code>Ctrl+Space</code> play/pause &nbsp;
+        <code>Ctrl+&larr;</code> back 3s &nbsp; <code>Ctrl+&rarr;</code> fwd 3s &nbsp;
+        <code>Ctrl+L</code> toggle loop playback
+      </div>
+    </div>
+
+    <div class="editor-zone">
+      <div class="section-label">Transcript</div>
+      <textarea id="transcript" placeholder="Type exactly what you hear here. Use the tag buttons on the left to insert markers at your cursor."></textarea>
+      <div class="footer-row">
+        <span id="wordCount">0 words</span>
+        <div>
+          <button id="clearBtn" style="background:var(--panel-2);border-color:var(--border);color:var(--muted);margin-right:8px;">Clear</button>
+          <button id="exportBtn">Export .txt</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  const player = document.getElementById('player');
+  const fileInput = document.getElementById('fileInput');
+  const filenameEl = document.getElementById('filename');
+  const statusMsg = document.getElementById('statusMsg');
+  const transcript = document.getElementById('transcript');
+  const wordCount = document.getElementById('wordCount');
+  let loopStart = null, loopEnd = null, loopActive = false;
+
+  // Load audio
+  fileInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const url = URL.createObjectURL(file);
+    player.src = url;
+    filenameEl.textContent = file.name;
+    statusMsg.textContent = 'Loaded: ' + file.name;
+  });
+
+  // Playback rate buttons
+  document.querySelectorAll('[data-rate]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const rate = parseFloat(btn.dataset.rate);
+      player.playbackRate = rate;
+      document.querySelectorAll('[data-rate]').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('rateLabel').textContent = 'Speed: ' + rate + 'x';
+    });
+  });
+
+  // Skip buttons
+  document.getElementById('back3').addEventListener('click', () => { player.currentTime = Math.max(0, player.currentTime - 3); });
+  document.getElementById('fwd3').addEventListener('click', () => { player.currentTime = player.currentTime + 3; });
+
+  // Loop controls
+  document.getElementById('setLoopStart').addEventListener('click', () => {
+    loopStart = player.currentTime;
+    document.getElementById('loopStartVal').textContent = loopStart.toFixed(1) + 's';
+  });
+  document.getElementById('setLoopEnd').addEventListener('click', () => {
+    loopEnd = player.currentTime;
+    document.getElementById('loopEndVal').textContent = loopEnd.toFixed(1) + 's';
+  });
+  document.getElementById('clearLoop').addEventListener('click', () => {
+    loopStart = null; loopEnd = null; loopActive = false;
+    document.getElementById('loopStartVal').textContent = '--';
+    document.getElementById('loopEndVal').textContent = '--';
+  });
+  document.getElementById('playLoop').addEventListener('click', () => {
+    if (loopStart === null || loopEnd === null) { alert('Set both loop start and end first.'); return; }
+    loopActive = true;
+    player.currentTime = loopStart;
+    player.play();
+  });
+  player.addEventListener('timeupdate', () => {
+    if (loopActive && loopEnd !== null && player.currentTime >= loopEnd) {
+      player.currentTime = loopStart;
+    }
+  });
+
+  // Tag insertion at cursor
+  document.querySelectorAll('.tag-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const insertText = btn.dataset.insert;
+      const start = transcript.selectionStart;
+      const end = transcript.selectionEnd;
+      const before = transcript.value.substring(0, start);
+      const after = transcript.value.substring(end);
+      transcript.value = before + insertText + after;
+      const newPos = start + insertText.length;
+      transcript.focus();
+      transcript.setSelectionRange(newPos, newPos);
+      updateWordCount();
+    });
+  });
+
+  function updateWordCount() {
+    const words = transcript.value.trim().split(/\s+/).filter(Boolean).length;
+    wordCount.textContent = words + ' words';
+  }
+  transcript.addEventListener('input', updateWordCount);
+
+  // Global keyboard shortcuts
+  document.addEventListener('keydown', (e) => {
+    if (e.ctrlKey && e.code === 'Space') {
+      e.preventDefault();
+      player.paused ? player.play() : player.pause();
+    } else if (e.ctrlKey && e.code === 'ArrowLeft') {
+      e.preventDefault();
+      player.currentTime = Math.max(0, player.currentTime - 3);
+    } else if (e.ctrlKey && e.code === 'ArrowRight') {
+      e.preventDefault();
+      player.currentTime = player.currentTime + 3;
+    } else if (e.ctrlKey && e.code === 'KeyL') {
+      e.preventDefault();
+      loopActive = !loopActive;
+      if (loopActive && loopStart !== null) player.currentTime = loopStart;
+    }
+  });
+
+  // Clear / export
+  document.getElementById('clearBtn').addEventListener('click', () => {
+    if (confirm('Clear the transcript?')) { transcript.value = ''; updateWordCount(); }
+  });
+  document.getElementById('exportBtn').addEventListener('click', () => {
+    const blob = new Blob([transcript.value], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const base = filenameEl.textContent.replace(/\.[^/.]+$/, '') || 'transcript';
+    a.href = url;
+    a.download = base + '.txt';
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+</script>
+
+</body>
+</html>
